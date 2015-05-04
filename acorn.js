@@ -1252,6 +1252,23 @@
     return String.fromCharCode(cu1, cu2);
   }
 
+  function readNewLine(normalizeCRLF) {
+    var ch = input.charCodeAt(tokPos);
+    var out;
+    ++tokPos;
+    if (ch === 13 && input.charCodeAt(tokPos) === 10) {
+      ++tokPos;
+      out = normalizeCRLF ? "\n" : "\r\n";
+    } else {
+      out = String.fromCharCode(ch);
+    }
+    if (options.locations) {
+      ++tokCurLine;
+      tokLineStart = tokPos;
+    }
+    return out;
+  }
+
   function readString(quote) {
     var isJSX = curTokContext() === j_oTag;
     var out = "", chunkStart = ++tokPos;
@@ -1267,8 +1284,12 @@
         out += input.slice(chunkStart, tokPos);
         out += readJSXEntity();
         chunkStart = tokPos;
+      } else if (isNewLine(ch)) {
+        if (!isJSX) raise(tokStart, "Unterminated string constant");
+        out += input.slice(chunkStart, tokPos);
+        out += readNewLine(false);
+        chunkStart = tokPos;
       } else {
-        if (isNewLine(ch) && !isJSX) raise(tokStart, "Unterminated string constant");
         ++tokPos;
       }
     }
@@ -1302,17 +1323,7 @@
         chunkStart = tokPos;
       } else if (isNewLine(ch)) {
         out += input.slice(chunkStart, tokPos);
-        ++tokPos;
-        if (ch === 13 && input.charCodeAt(tokPos) === 10) {
-          ++tokPos;
-          out += "\n";
-        } else {
-          out += String.fromCharCode(ch);
-        }
-        if (options.locations) {
-          ++tokCurLine;
-          tokLineStart = tokPos;
-        }
+        out += readNewLine(true);
         chunkStart = tokPos;
       } else {
         ++tokPos;
